@@ -254,20 +254,43 @@ class LarkService {
             }
 
             // Lấy headers từ object đầu tiên
-            const headers = Object.keys(testCaseData[0]);
+            const headers = Object.keys(testCaseData[0])?.filter(item => !['check_list_id', 'test_suit_id'].includes(item));
 
             // Tạo CSV content
             let csvContent = headers.join(',') + '\n';
 
             // Thêm từng row data
-            testCaseData.forEach(item => {
-                const row = headers.map(header => {
-                    const value = item[header];
-                    // Escape commas and quotes trong CSV
-                    if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-                        return `"${value.replace(/"/g, '""')}"`;
+            testCaseData.forEach((item, index) => {
+                const row = headers.map((header) => {
+                    if (!['check_list_id', 'test_suit_id'].includes(header)) {
+                        const value = item[header];
+                        if (header === 'id') {
+                            return index + 1;
+                        }
+    
+                        // Escape commas and quotes trong CSV
+                        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                            return `"${value.replace(/"/g, '""')}"`;
+                        }
+
+                        if (header === 'steps') {
+                            const stepsText = value?.map(s => 
+                                `Step ${s?.step?.toString()?.replace(',', ' ') || ''}: - ` +
+                                `Action: ${s?.action?.toString()?.replace(',', ' ')  || ''} - ` +
+                                `Expected: ${s?.expected?.toString()?.replace(',', ' ')  || ''} - ` +
+                                `Test Data: ${s?.testData?.toString()?.replace(',', ' ')  || ''} - ` +
+                                `Status: ${s?.status?.toString()?.replace(',', ' ')  || ''}`
+                            ).join(' --- ');
+
+                            return stepsText || '';
+                        }
+
+                        if (header === 'status') {
+                            return value || ''
+                        }
+
+                        return value || '';
                     }
-                    return value || '';
                 }).join(',');
                 csvContent += row + '\n';
             });
@@ -337,8 +360,6 @@ class LarkService {
     async exportTestCase(testCaseData) {
         try {
             console.log('🚀 Exporting test case to Lark sheet...');
-
-            console.log('testCaseData:', testCaseData);
 
             // Convert test case data to xlsx format
             const csvBuffer = this.convertDataToCSVBuffer(testCaseData);
